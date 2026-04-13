@@ -12,6 +12,7 @@ class fetch_pmixtest(rfm.RunOnlyRegressionTest):
     repository = f"https://github.com/openpmix/pmix-tests.git"
     executable = 'git'
     executable_opts = ["clone",f"{repository}"]
+    local = True
     @sanity_function
     def validate_download(self):
         return sn.assert_eq(self.job.exitcode,0)
@@ -26,7 +27,8 @@ class base_test(rfm.RunOnlyRegressionTest):
     pmix_tests = fixture(fetch_pmixtest, scope = 'session')
     path = list()
     ld_library_path = list()
-    
+    num_cpus_per_task = 1
+    time_limit = '0d0h5m0s'
     @run_before('run')
     def prepare_run(self):
         for fix in [self.prrte, self.pmix, self.libevent]:
@@ -45,37 +47,44 @@ class base_test(rfm.RunOnlyRegressionTest):
 @rfm.simple_test
 class hello_test(base_test):
     descr = "Test if it works"
-    executable = "./run.sh"
     test_name = "hello_world"
+    num_tasks = 120
+    num_tasks_per_node = 12
+
     @run_before("run")
     def compile_test(self):
         test_dir_base = self.pmix_tests.stagedir
         test_path = os.path.join(test_dir_base, "pmix-tests/prrte", self.test_name)
         print(test_path)
         self.prerun_cmds = [ f'cd {test_path}', './build.sh' ]    
+        self.executable="./run.sh"
 
 @rfm.simple_test
 class cycle_test(base_test):
     descr = "Test Cycle in pmix-test"
-    executable = "./run.sh"
     test_name = "cycle"
+    num_tasks = 120
+    num_tasks_per_node = 12
+
     @run_before("run")
     def compile_test(self):
         test_dir_base = self.pmix_tests.stagedir
         test_path = os.path.join(test_dir_base, "pmix-tests/prrte", self.test_name)
         print(test_path)
         self.prerun_cmds = [ f'cd {test_path}', './build.sh' ]    
-
+        self.executable="./run.sh"
 @rfm.simple_test
 class prun_wrapper_test(base_test):
     descr = "Test prun-wrapper in pmix-test"
-    executable = "./run.sh"
     test_name = "prun-wrapper"
+    num_tasks = 120
+    num_tasks_per_node = 12
+
     @run_before("run")
     def compile_test(self):
         test_dir_base = self.pmix_tests.stagedir
         test_path = os.path.join(test_dir_base, "pmix-tests/prrte", self.test_name)
         print(test_path)
         self.prerun_cmds = [ f'cd {test_path}', './build.sh' ]    
-
+        self.executable="./run.sh"
     

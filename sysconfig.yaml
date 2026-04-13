@@ -1,0 +1,22 @@
+systems:
+- name: odo
+  descr: Odo system.
+  hostnames: ['.*']
+  partitions:
+  - name: batch
+    descr: Use nodes from the Slurm partition containing MI250X nodes
+    scheduler: slurm
+    launcher: local
+    # If you care about GPU binding or cores per task, you must set it here, it is not handled by tests
+    # Tests only handle -N/-n/--ntasks-per-node
+    access: ['-A gen243 -p batch']
+    environs: ['pmix_test']
+
+environments:
+- name: pmix_test
+  env_vars:
+  - ['PMIX_VERSION', '6.1.0']
+  - ['LIBEVENT_VERSION', '2.1.12']
+  - ['PRRTE_VERSION', '4.1.0']
+
+

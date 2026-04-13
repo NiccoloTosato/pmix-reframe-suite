@@ -74,4 +74,23 @@ graph TD
    - `pmix` builds next, dependent on `libevent`.
    - `prrte` builds last, requiring both `libevent` and `pmix`.
 3. **Setup Phase**: The `base_test` injects the built bin/lib paths into the runtime environment block.
-4. **Test Phase**: `hello_world`, `cycle`, and `prun-wrapper` tests compile their local binaries and execute exactly matching the prepared environment constraints.
+4. **Test Phase**: `hello_world`, `cycle`, and `prun-wrapper** tests compile their local binaries and execute exactly matching the prepared environment constraints.
+
+### Configuration
+
+The system and environment configuration is provided by: `sysconfig.yaml`.
+Here you can adjust the `libevent`,`pmix`, `prrte` version.
+
+### How to run
+
+**Prerequisites**:
+
+1. Create a dedicated `venv`: `python3 -m venv .venv`
+2. Source the environment: `source .venv/bin/activate`
+3. Install reframe: `pip install reframe-hpc'
+
+**Run:**
+
+Optionally setup the environment: `source setup_env.sh`
+Just: `reframe  -C ./sysconfig.yaml -c run_pmix_test.py  --system=odo:batch -r`
+

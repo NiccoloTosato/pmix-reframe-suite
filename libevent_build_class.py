@@ -5,11 +5,11 @@ import reframe.utility.sanity as sn
 
 class fetch_libevent(rfm.RunOnlyRegressionTest):
     descr = "Fetch libevent"
-    version = variable(str,value = '2.1.12')
+    version = variable(str,value = os.getenv('LIBEVENT_VERSION','2.1.12'))
     url = f"https://github.com/libevent/libevent/releases/download/release-{version}-stable/libevent-{version}-stable.tar.gz"
     executable = 'wget'
     executable_opts = [f"{url}"]
-                       
+    local = True
     @sanity_function
     def validate_download(self):
         return sn.assert_eq(self.job.exitcode,0)
@@ -19,7 +19,6 @@ class build_libevent(rfm.CompileOnlyRegressionTest):
     build_system = 'Autotools'
     build_prefix = variable(str)
     libevent = fixture(fetch_libevent, scope='session')
-
     @run_before('compile')
     def prepare_build(self):
         self.build_system.config_opts = [f"--prefix={self.stagedir}"]
