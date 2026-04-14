@@ -58,19 +58,65 @@ class base_test(rfm.RunOnlyRegressionTest):
         # Calculate the difference and return it as your performance metric
         return self.t_end - self.t_start
 
+class test_builder(rfm.CompileOnlyRegressionTest):
+    build_system = 'CustomBuild'
+    prrte = fixture(build_prrte, scope = 'environment')
+    pmix =  fixture(build_pmix, scope = 'environment')
+    libevent = fixture(build_libevent, scope = 'environment')
+    pmix_tests = fixture(fetch_pmixtest, scope = 'session')
+    path = list()
+    test_base_path=""
+    ld_library_path = list()
+    @run_before('compile')
+    def prepare_env(self):
+        for fix in [self.prrte, self.pmix, self.libevent]:
+            self.path.append(os.path.join(fix.stagedir,"bin"))
+            self.ld_library_path.append(os.path.join(fix.stagedir,"lib"))
+        self.env_vars = {
+            "PATH" : ":".join(self.path) + ":${PATH}",
+            "LD_LIBRARY_PATH" : ":".join(self.ld_library_path) + ":${LD_LIBRARY_PATH}"
+        }
+        self.test_base_path=os.path.join(self.pmix_tests.stagedir,"pmix-tests","prrte")
+
+class build_hello_world(test_builder):
+    descr = 'Build pmix hello world test'
+    test_name = "hello_world"
+    @run_before('compile',always_last=True)
+    def prepare_build(self):
+        self.test_path = os.path.join(self.test_base_path, self.test_name)
+        self.build_system.commands = [
+            f'cd {self.test_path}', './build.sh'
+        ]
+class build_prun_wrapper(test_builder):
+    descr = 'Build pmix prun-wrapper'
+    test_name = "prun-wrapper"
+    @run_before('compile',always_last=True)
+    def prepare_build(self):
+        self.test_path = os.path.join(self.test_base_path, self.test_name)
+        self.build_system.commands = [
+            f'cd {self.test_path}', './build.sh'
+        ]
+class build_cycle(test_builder):
+    descr = 'Build pmix cycle'
+    test_name = "cycle"
+    @run_before('compile',always_last=True)
+    def prepare_build(self):
+        self.test_path = os.path.join(self.test_base_path, self.test_name)
+        self.build_system.commands = [
+            f'cd {self.test_path}', './build.sh'
+        ]
+
 @rfm.simple_test
 class hello_test(base_test):
-    descr = "Test if it works"
+    descr = "Test pmix hello_world"
     test_name = "hello_world"
     num_tasks = 120
     num_tasks_per_node = 12
-
+    hello_test = fixture(build_hello_world,scope = 'environment')
     @run_before("run")
-    def compile_test(self):
-        test_dir_base = self.pmix_tests.stagedir
-        test_path = os.path.join(test_dir_base, "pmix-tests/prrte", self.test_name)
-        print(test_path)
-        self.prerun_cmds = [ f'cd {test_path}', './build.sh' ]    
+    def prepare_test(self):
+        test_path = self.hello_test.test_path
+        self.prerun_cmds = [ f'cd {test_path}' ]    
         self.executable="./run.sh"
     @performance_function('s')
     def hostname_test(self):
@@ -100,14 +146,13 @@ class cycle_test(base_test):
     test_name = "cycle"
     num_tasks = 120
     num_tasks_per_node = 12
-
+    cycle_test = fixture(build_cycle,scope = 'environment')
     @run_before("run")
-    def compile_test(self):
-        test_dir_base = self.pmix_tests.stagedir
-        test_path = os.path.join(test_dir_base, "pmix-tests/prrte", self.test_name)
-        print(test_path)
-        self.prerun_cmds = [ f'cd {test_path}', './build.sh' ]    
+    def prepare_test(self):
+        test_path = self.cycle_test.test_path
+        self.prerun_cmds = [ f'cd {test_path}' ]    
         self.executable="./run.sh"
+
 
 @rfm.simple_test
 class prun_wrapper_test(base_test):
@@ -115,17 +160,10 @@ class prun_wrapper_test(base_test):
     test_name = "prun-wrapper"
     num_tasks = 120
     num_tasks_per_node = 12
-
-    @run_after("init")
-    def setup_deps(self):
-        # This is encessary, there could be concurrency problems, since both test compile hello world
-        self.depends_on('hello_test')
-        
+    prun_test = fixture(build_prun_wrapper,scope = 'environment')
     @run_before("run")
-    def compile_test(self):
-        test_dir_base = self.pmix_tests.stagedir
-        test_path = os.path.join(test_dir_base, "pmix-tests/prrte", self.test_name)
-        print(test_path)
-        self.prerun_cmds = [ f'cd {test_path}', './build.sh', 'scontrol show hostnames $SLURM_JOB_NODELIST > hostfile.txt' ]    
+    def prepare_test(self):
+        test_path = self.prun_test.test_path
+        self.prerun_cmds = [ f'cd {test_path}', 'scontrol show hostnames $SLURM_JOB_NODELIST > hostfile.txt' ]    
         self.executable="./run.sh"
         self.env_vars['CI_HOSTFILE'] = f"{os.path.join(test_path,'hostfile.txt')}"
