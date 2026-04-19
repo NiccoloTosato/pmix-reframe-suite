@@ -190,25 +190,97 @@ class hello_world_test(base_test):
         return sn.all(flags)
 
 @rfm.simple_test
-class cycle_test(base_test):
+class cycle_test_hostname(base_test):
     descr = "Test Cycle in pmix-test"
     test_name = "cycle"
     num_tasks = 120
     num_tasks_per_node = 12
     cycle_test = fixture(build_cycle,scope = 'environment')
     num_iters=100
+
     @run_before("run")
     def prepare_test(self):
         test_path = self.cycle_test.test_path
-        self.prerun_cmds = [ f'cd {test_path}' , 'prte --no-ready-msg --report-uri dvm.uri &' ]    
-        cmd = f"prun --dvm-uri file:dvm.uri --num-connect-retries 1000 hostname"
+        self.prerun_cmds = [ f'cd {test_path}' , 'prte --no-ready-msg --report-uri dvm.uri_0 &', 'TIMEFORMAT="runtime,%R,%U,%S"','sleep 5' ]    
+        cmd = f"prun --dvm-uri file:dvm.uri_0 --num-connect-retries 1000 hostname"
         one_liner = f'for n in $(seq 1 {self.num_iters}); do {cmd}; done'
-        self.executable = 'bash'
-        self.executable_opts = ['-c', f"'{one_liner}'"]
-        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri"]
+        self.executable = 'time'
+        self.executable_opts = ['bash','-c', f"'{one_liner}'"]
+        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_0"]
+
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(expected_count=self.num_iters*self.num_tasks),
+                 self.check_errors()]
+        return sn.all(flags)
+    @performance_function('s')
+    def walltime(self):
+        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
+        # Extract the values
+        return sn.extractsingle(
+            patt, 
+            self.stderr,          
+            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
+            conv=float            
+        )
+
+@rfm.simple_test
+class cycle_test_initialize_finalize(base_test):
+    descr = "Test Cycle in pmix-test"
+    test_name = "cycle"
+    num_tasks = 120
+    num_tasks_per_node = 12
+    cycle_test = fixture(build_cycle,scope = 'environment')
+    num_iters=100
+
+    @run_before("run")
+    def prepare_test(self):
+        test_path = self.cycle_test.test_path
+        self.prerun_cmds = [ f'cd {test_path}' , 'prte --no-ready-msg --report-uri dvm.uri_1 &',  'TIMEFORMAT="runtime,%R,%U,%S"','sleep 5' ]    
+        cmd = f"prun --dvm-uri file:dvm.uri_1 --num-connect-retries 1000  ./init_finalize_pmix"
+        one_liner = f'for n in $(seq 1 {self.num_iters}); do {cmd}; done'
+        self.executable = 'time'
+        self.executable_opts = ['bash','-c', f"'{one_liner}'"]
+        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_1"]
+
+    @sanity_function
+    def check_test(self):
+        flags = [self.check_host_count(expected_count=0),
+                 self.check_errors()]
+        return sn.all(flags)
+    @performance_function('s')
+    def walltime(self):
+        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
+        # Extract the values
+        return sn.extractsingle(
+            patt, 
+            self.stderr,          
+            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
+            conv=float            
+        )
+
+@rfm.simple_test
+class cycle_test_initialize_finalize_multi(base_test):
+    descr = "Test Cycle in pmix-test"
+    test_name = "cycle"
+    num_tasks = 120
+    num_tasks_per_node = 12
+    cycle_test = fixture(build_cycle,scope = 'environment')
+    num_iters=100
+
+    @run_before("run")
+    def prepare_test(self):
+        test_path = self.cycle_test.test_path
+        self.prerun_cmds = [ f'cd {test_path}' , 'prte --no-ready-msg --report-uri dvm.uri_2 &' ]    
+        cmd = f"prun --dvm-uri file:dvm.uri_2 --num-connect-retries 1000  ./multi_init_finalize_pmix"
+        one_liner = f'for n in $(seq 1 {self.num_iters}); do {cmd}; done'
+        self.executable = 'time'
+        self.executable_opts = ['bash', '-c', f"'{one_liner}'"]
+        self.postrun_cmds = ["pterm --dvm-uri file:dvm.uri_2"]
+
+    @sanity_function
+    def check_test(self):
+        flags = [self.check_host_count(expected_count=0),
                  self.check_errors()]
         return sn.all(flags)
 
