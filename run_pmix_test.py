@@ -10,68 +10,8 @@ import reframe.utility.sanity as sn
 from prrte_build_class import build_prrte
 from pmix_build_class import build_pmix
 from libevent_build_class import build_libevent
+from build_pmix_test import build_cycle, build_hello_world, build_prun_wrapper, fetch_pmixtest
 
-class fetch_pmixtest(rfm.RunOnlyRegressionTest):
-    descr = "Fetch pmix test"
-    repository = f"https://github.com/NiccoloTosato/pmix-tests.git"
-    executable = 'git'
-    executable_opts = ["clone",f"{repository}"]
-    local = True
-    @sanity_function
-    def validate_download(self):
-        return sn.assert_eq(self.job.exitcode,0)
-
-class test_builder(rfm.CompileOnlyRegressionTest):
-    build_system = 'CustomBuild'
-    prrte = fixture(build_prrte, scope = 'environment')
-    pmix =  fixture(build_pmix, scope = 'environment')
-    libevent = fixture(build_libevent, scope = 'environment')
-    pmix_tests = fixture(fetch_pmixtest, scope = 'session')
-    path = list()
-    test_base_path=""
-    ld_library_path = list()
-    @run_before('compile')
-    def prepare_env(self):
-        for fix in [self.prrte, self.pmix, self.libevent]:
-            self.path.append(os.path.join(fix.stagedir,"bin"))
-            self.ld_library_path.append(os.path.join(fix.stagedir,"lib"))
-        self.env_vars = {
-            "PATH" : ":".join(self.path) + ":${PATH}",
-            "LD_LIBRARY_PATH" : ":".join(self.ld_library_path) + ":${LD_LIBRARY_PATH}"
-        }
-        self.test_base_path=os.path.join(self.pmix_tests.stagedir,"pmix-tests","prrte")
-
-class build_hello_world(test_builder):
-    descr = 'Build pmix hello world test'
-    test_name = "hello_world"
-    @run_before('compile',always_last=True)
-    def prepare_build(self):
-        self.test_path = os.path.join(self.test_base_path, self.test_name)
-        self.build_system.commands = [
-            f'cd {self.test_path}', './build.sh'
-        ]
-
-class build_prun_wrapper(test_builder):
-    descr = 'Build pmix prun-wrapper'
-    test_name = "prun-wrapper"
-    @run_before('compile',always_last=True)
-    def prepare_build(self):
-        self.test_path = os.path.join(self.test_base_path, self.test_name)
-        self.build_system.commands = [
-            f'cd {self.test_path}', './build.sh'
-        ]
-
-class build_cycle(test_builder):
-    descr = 'Build pmix cycle'
-    test_name = "cycle"
-    @run_before('compile',always_last=True)
-    def prepare_build(self):
-        self.test_path = os.path.join(self.test_base_path, self.test_name)
-        self.build_system.commands = [
-            f'cd {self.test_path}', './build.sh'
-        ]
-    
-    
 class base_test(rfm.RunOnlyRegressionTest):
     valid_systems = ['*']
     valid_prog_environs = ['*']
@@ -123,6 +63,17 @@ class base_test(rfm.RunOnlyRegressionTest):
         print("This is the baseclass sanity function")
         return sn.assert_eq(self.job.exitcode,0)
 
+    @performance_function('s')
+    def walltime(self):
+        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
+        # Extract the values
+        return sn.extractsingle(
+            patt, 
+            self.stderr,          
+            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
+            conv=float            
+        )
+
 
 @rfm.simple_test
 class hostname_test(base_test):
@@ -141,16 +92,6 @@ class hostname_test(base_test):
         self.executable_opts = ["prun", f"--map-by ppr:{self.num_tasks_per_node}:node", "hostname"]
         # At the end shutdown the dvm
         self.postrun_cmds = ["pterm"]
-    @performance_function('s')
-    def walltime(self):
-        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
-        # Extract the values
-        return sn.extractsingle(
-            patt, 
-            self.stderr,          
-            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
-            conv=float            
-        )
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(),self.check_errors()]
@@ -173,16 +114,6 @@ class hello_world_test(base_test):
         # At the end shutdown the dvm
         self.postrun_cmds = ["pterm"]
 
-    @performance_function('s')
-    def walltime(self):
-        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
-        # Extract the values
-        return sn.extractsingle(
-            patt, 
-            self.stderr,          
-            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
-            conv=float            
-        )
 
     @sanity_function
     def check_test(self):
@@ -213,16 +144,6 @@ class cycle_test_hostname(base_test):
         flags = [self.check_host_count(expected_count=self.num_iters*self.num_tasks),
                  self.check_errors()]
         return sn.all(flags)
-    @performance_function('s')
-    def walltime(self):
-        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
-        # Extract the values
-        return sn.extractsingle(
-            patt, 
-            self.stderr,          
-            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
-            conv=float            
-        )
 
 @rfm.simple_test
 class cycle_test_initialize_finalize(base_test):
@@ -248,16 +169,6 @@ class cycle_test_initialize_finalize(base_test):
         flags = [self.check_host_count(expected_count=0),
                  self.check_errors()]
         return sn.all(flags)
-    @performance_function('s')
-    def walltime(self):
-        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
-        # Extract the values
-        return sn.extractsingle(
-            patt, 
-            self.stderr,          
-            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
-            conv=float            
-        )
 
 @rfm.simple_test
 class cycle_test_initialize_finalize_multi(base_test):
@@ -300,16 +211,6 @@ class prun_wrapper_test_hostname(base_test):
         self.executable = 'time'
         self.executable_opts = [ f"{cmd}"]
 
-    @performance_function('s')
-    def walltime(self):
-        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
-        # Extract the values
-        return sn.extractsingle(
-            patt, 
-            self.stderr,          
-            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
-            conv=float            
-        )
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(),
@@ -336,16 +237,6 @@ class prun_wrapper_test_hostname_absolute(base_test):
         self.executable = 'time'
         self.executable_opts = [ f"{cmd}"]
 
-    @performance_function('s')
-    def walltime(self):
-        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
-        # Extract the values
-        return sn.extractsingle(
-            patt, 
-            self.stderr,          
-            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
-            conv=float            
-        )
     @sanity_function
     def check_test(self):
         flags = [self.check_host_count(),
@@ -366,17 +257,6 @@ class prun_wrapper_test_hello(base_test):
         cmd = f" prterun --map-by node  ../hello_world/hello"
         self.executable = 'time'
         self.executable_opts = [ f"{cmd}"]
-
-    @performance_function('s')
-    def walltime(self):
-        patt = r"runtime,(\d+\.\d+),(\d+\.\d+),(\d+\.\d+)"
-        # Extract the values
-        return sn.extractsingle(
-            patt, 
-            self.stderr,          
-            tag=(1),        # Capture Group 1 (Real), Group 2 (User), Group 3 (Sys), Get only 1
-            conv=float            
-        )
 
     @sanity_function
     def check_test(self):
