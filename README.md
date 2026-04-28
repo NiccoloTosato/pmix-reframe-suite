@@ -30,14 +30,38 @@ This test suite:
 
 The test suite follows a strict build order to ensure all dependencies are satisfied:
 
-```
-libevent (base library)
-    ↓
-PMIx (depends on libevent)
-    ↓
-PRRTE (depends on both libevent and PMIx)
-    ↓
-PMIx Tests (hello_world, cycle, prun-wrapper)
+```mermaid
+graph TD
+    %% Fetch steps
+    FLB[fetch_libevent] --> BLB
+    FPM[fetch_pmix] --> BPM
+    FPR[fetch_prrte] --> BPR
+    FTS[fetch_pmixtest] --> BTST
+
+    %% Build steps
+    BLB(build_libevent) --> BPM(build_pmix)
+    BLB --> BPR(build_prrte)
+    BPM --> BPR
+
+    %% Test Runtime setup
+    BLB -. LD_LIBRARY_PATH/PATH .-> BTST{base_test}
+    BPM -. LD_LIBRARY_PATH/PATH .-> BTST
+    BPR -. LD_LIBRARY_PATH/PATH .-> BTST
+    
+    %% Target Tests
+    BTST --> T1(hello_test)
+    BTST --> T2(cycle_test)
+    BTST --> T3(prun_wrapper_test)
+
+    classDef fetch fill:#2a9d8f,stroke:#264653,stroke-width:2px,color:#fff;
+    classDef build fill:#e9c46a,stroke:#264653,stroke-width:2px,color:#000;
+    classDef test fill:#e76f51,stroke:#264653,stroke-width:2px,color:#fff;
+    classDef base fill:#f4a261,stroke:#264653,stroke-width:2px,color:#000;
+
+    class FLB,FPM,FPR,FTS fetch;
+    class BLB,BPM,BPR build;
+    class T1,T2,T3 test;
+    class BTST base;
 ```
 
 ### Installation
