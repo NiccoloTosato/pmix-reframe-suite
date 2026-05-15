@@ -1,5 +1,9 @@
 #!/bin/bash
 
+# SPDX-FileCopyrightText: 2026 Niccolo Tosato niccolo.tosato@yahoo.it
+#
+# SPDX-License-Identifier: MIT
+
 MYROOTDIR=$(pwd)
 
 

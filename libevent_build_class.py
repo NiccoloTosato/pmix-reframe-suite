@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Niccolo Tosato niccolo.tosato@yahoo.it
+#
+# SPDX-License-Identifier: MIT
+
 import os
 import reframe as rfm
 import reframe.utility.typecheck as typ

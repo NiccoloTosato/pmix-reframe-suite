@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026 Niccolo Tosato niccolo.tosato@yahoo.it
+#
+# SPDX-License-Identifier: MIT
+
 import os
 import time
 from packaging.version import parse as parse_version
@@ -189,7 +193,6 @@ class cycle_test_initialize_finalize_multi(base_test):
         flags = [self.check_host_count(expected_count=0),
                  self.check_errors()]
         return sn.all(flags)
-
 
 @rfm.simple_test
 class prun_wrapper_test_hostname(base_test):
